@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>HABIT DUEL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --surface2: #181818;
+    --border: #242424;
+    --accent: #c8ff00;
+    --accent-dim: #8fb300;
+    --red: #ff4444;
+    --text: #f0f0f0;
+    --muted: #555;
+    --muted2: #333;
+    --radius: 12px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; overflow: hidden; }
+
+  /* ── SCREENS ── */
+  .screen { position: fixed; inset: 0; display: none; flex-direction: column; overflow: hidden; }
+  .screen.active { display: flex; }
+
+  /* ── AUTH ── */
+  #screen-auth {
+    justify-content: center; align-items: center;
+    background: var(--bg);
+    padding: 32px 24px;
+  }
+  .auth-wrap { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 0; }
+  .auth-logo { font-family: 'Bebas Neue', sans-serif; font-size: 64px; line-height: 1; letter-spacing: 2px; color: var(--accent); margin-bottom: 4px; }
+  .auth-sub { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 48px; font-family: 'DM Mono', monospace; }
+  .auth-tabs { display: flex; gap: 0; margin-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .auth-tab { flex: 1; padding: 10px; text-align: center; font-size: 13px; letter-spacing: 1px; text-transform: uppercase; font-family: 'DM Mono', monospace; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .2s; }
+  .auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .auth-form { display: flex; flex-direction: column; gap: 14px; }
+  .auth-form.hidden { display: none; }
+  .input-group { display: flex; flex-direction: column; gap: 6px; }
+  .input-group label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .input-group input {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif;
+    outline: none; transition: border-color .2s;
+  }
+  .input-group input:focus { border-color: var(--accent); }
+  .btn-primary {
+    margin-top: 8px; padding: 16px; background: var(--accent); color: #0a0a0a;
+    border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px; letter-spacing: 2px; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-primary:active { opacity: .8; }
+  .auth-err { font-size: 12px; color: var(--red); text-align: center; min-height: 16px; font-family: 'DM Mono', monospace; }
+
+  /* ── APP SHELL ── */
+  #screen-app { background: var(--bg); }
+  .app-header {
+    flex-shrink: 0; padding: 52px 20px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .app-title { font-family: 'Bebas Neue', sans-serif; font-size: 28px; letter-spacing: 2px; color: var(--accent); }
+  .app-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 0 20px 100px; }
+  .app-content::-webkit-scrollbar { display: none; }
+
+  /* ── NAVBAR ── */
+  .navbar {
+    flex-shrink: 0; position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--surface); border-top: 1px solid var(--border);
+    display: flex; justify-content: space-around; align-items: center;
+    padding: 10px 0 calc(10px + env(safe-area-inset-bottom));
+    z-index: 100;
+  }
+  .nav-item {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    cursor: pointer; padding: 6px 16px; border-radius: 8px; transition: background .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-item:active { background: var(--surface2); }
+  .nav-icon { font-size: 20px; transition: transform .2s; }
+  .nav-label { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; font-family: 'DM Mono', monospace; color: var(--muted); transition: color .2s; }
+  .nav-item.active .nav-label { color: var(--accent); }
+  .nav-item.active .nav-icon { transform: translateY(-2px); }
+
+  /* ── TABS (inside screen) ── */
+  .tab-content { display: none; animation: fadeUp .25s ease; }
+  .tab-content.active { display: block; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ── HÁBITOS TAB ── */
+  .habits-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; margin-top: 8px; }
+  .day-badge {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 12px;
+    font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 1px; color: var(--muted);
+  }
+  .streak-badge {
+    background: var(--accent); color: #0a0a0a;
+    border-radius: 6px; padding: 6px 12px;
+    font-family: 'Bebas Neue', sans-serif; font-size: 15px; letter-spacing: 2px;
+  }
+  .habit-list { display: flex; flex-direction: column; gap: 10px; }
+  .habit-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 16px; display: flex; align-items: center; gap: 14px;
+    transition: border-color .2s, background .2s; cursor: pointer;
+  }
+  .habit-card.done { border-color: var(--accent); background: #c8ff0008; }
+  .habit-checkbox {
+    width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--muted2);
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    transition: all .2s; font-size: 13px;
+  }
+  .habit-card.done .habit-checkbox { background: var(--accent); border-color: var(--accent); color: #0a0a0a; }
+  .habit-info { flex: 1; }
+  .habit-name { font-size: 15px; font-weight: 500; }
+  .habit-streak { font-size: 11px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+  .habit-photo-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--surface2); display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0; transition: all .2s;
+  }
+  .habit-card.done .habit-photo-btn { border-color: var(--accent); background: var(--accent); }
+  .btn-add-habit {
+    margin-top: 16px; width: 100%; padding: 14px; background: transparent;
+    border: 1px dashed var(--muted2); border-radius: var(--radius);
+    color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px;
+    letter-spacing: 1px; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-add-habit:active { border-color: var(--accent); color: var(--accent); }
+
+  /* ── PERFIL TAB ── */
+  .section-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .perfil-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; margin-top: 6px; }
+  .perfil-nav-btn { width: 36px; height: 36px; border-radius: 8px; background: var(--surface); border: 1px solid var(--border); color: var(--text); font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: border-color .2s; }
+  .perfil-nav-btn:active { border-color: var(--accent); }
+  .perfil-date-label { font-family: 'Bebas Neue', sans-serif; font-size: 22px; letter-spacing: 2px; color: var(--text); }
+  .perfil-date-today { color: var(--accent); }
+
+  .perfil-summary { display: flex; gap: 10px; margin-bottom: 24px; }
+  .perfil-summary-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 12px; }
+  .pscard-name { font-family: 'DM Mono', monospace; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .pscard-pct { font-family: 'Bebas Neue', sans-serif; font-size: 40px; line-height: 1; color: var(--accent); margin-bottom: 8px; }
+  .pscard-pct.zero { color: var(--muted); }
+  .pct-bar-track { height: 4px; background: var(--muted2); border-radius: 2px; overflow: hidden; }
+  .pct-bar-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width .4s ease; }
+
+  .habit-history-list { display: flex; flex-direction: column; gap: 8px; }
+  .habit-history-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 12px;
+  }
+  .hhr-name { flex: 1; font-size: 14px; font-weight: 500; }
+  .hhr-col { display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 40px; }
+  .hhr-col-label { font-family: 'DM Mono', monospace; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+  .hhr-status { font-size: 18px; line-height: 1; }
+  .hhr-divider { width: 1px; height: 32px; background: var(--border); }
+
+  /* ── FOTOS TAB ── */
+  .day-filter { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 20px; }
+  .day-filter::-webkit-scrollbar { display: none; }
+  .day-chip {
+    flex-shrink: 0; padding: 8px 14px; border-radius: 20px;
+    border: 1px solid var(--border); background: var(--surface);
+    font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted);
+    cursor: pointer; transition: all .2s; white-space: nowrap;
+  }
+  .day-chip.active { background: var(--accent); border-color: var(--accent); color: #0a0a0a; font-weight: 600; }
+  .photos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .photo-card { border-radius: var(--radius); overflow: hidden; background: var(--surface); border: 1px solid var(--border); }
+  .photo-img { width: 100%; aspect-ratio: 1; object-fit: cover; background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 32px; }
+  .photo-meta { padding: 10px; }
+  .photo-habit { font-size: 12px; font-weight: 500; }
+  .photo-time { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+  .photo-owner { font-size: 10px; color: var(--accent); font-family: 'DM Mono', monospace; }
+  .empty-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 60px 20px; color: var(--muted); }
+  .empty-state .icon { font-size: 40px; opacity: .4; }
+  .empty-state p { font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 1px; }
+
+  /* ── VALOR TAB ── */
+  .valor-hero {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    padding: 32px 24px; text-align: center; margin-bottom: 20px; position: relative; overflow: hidden;
+  }
+  .valor-hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, #c8ff0015 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .valor-label { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .valor-amount { font-family: 'Bebas Neue', sans-serif; font-size: 72px; line-height: 1; color: var(--accent); letter-spacing: 2px; }
+  .valor-currency { font-size: 24px; vertical-align: super; }
+  .valor-month { font-family: 'DM Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 6px; }
+  .valor-history { display: flex; flex-direction: column; gap: 8px; }
+  .valor-row {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .valor-row-month { font-size: 13px; font-weight: 500; }
+  .valor-row-val { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1px; color: var(--accent); }
+  .vs-row {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 24px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px;
+  }
+  .vs-player { flex: 1; text-align: center; }
+  .vs-name { font-size: 13px; font-weight: 500; }
+  .vs-pct { font-family: 'Bebas Neue', sans-serif; font-size: 36px; color: var(--accent); line-height: 1; }
+  .vs-label { font-size: 10px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .vs-sep { font-family: 'Bebas Neue', sans-serif; font-size: 24px; color: var(--muted); }
+
+  /* ── MODAL ── */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.85); backdrop-filter: blur(8px);
+    z-index: 200; display: none; align-items: flex-end; justify-content: center;
+    animation: fadeIn .2s ease;
+  }
+  .modal-overlay.open { display: flex; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .modal-sheet {
+    background: var(--surface); border-top: 1px solid var(--border);
+    border-radius: 20px 20px 0 0; padding: 24px; width: 100%; max-width: 480px;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .modal-handle { width: 40px; height: 4px; background: var(--muted2); border-radius: 2px; margin: 0 auto 20px; }
+  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 24px; letter-spacing: 2px; margin-bottom: 6px; }
+  .modal-sub { font-size: 12px; color: var(--muted); font-family: 'DM Mono', monospace; margin-bottom: 24px; }
+  .photo-upload-area {
+    border: 2px dashed var(--border); border-radius: var(--radius);
+    padding: 40px 20px; text-align: center; cursor: pointer; transition: border-color .2s; margin-bottom: 16px;
+  }
+  .photo-upload-area:hover, .photo-upload-area.has-photo { border-color: var(--accent); }
+  .photo-upload-area .icon { font-size: 36px; margin-bottom: 8px; }
+  .photo-upload-area p { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .photo-preview { width: 100%; border-radius: 10px; max-height: 200px; object-fit: cover; display: none; }
+  .modal-btns { display: flex; gap: 10px; }
+  .btn-ghost { flex: 1; padding: 14px; background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 1px; cursor: pointer; }
+  .btn-confirm { flex: 2; padding: 14px; background: var(--accent); color: #0a0a0a; border: none; border-radius: 8px; font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 2px; cursor: pointer; }
+
+  /* ── ADD HABIT MODAL ── */
+  .modal-input {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 14px 16px; color: var(--text); font-size: 15px; font-family: 'DM Sans', sans-serif;
+    outline: none; width: 100%; margin-bottom: 16px; transition: border-color .2s;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+
+  /* ── EDIT HABIT MODAL ── */
+  .edit-actions { display: flex; flex-direction: column; gap: 10px; }
+  .edit-action-btn { padding: 14px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; text-align: left; display: flex; align-items: center; gap: 10px; }
+</style>
+</head>
+<body>
+
+<!-- ══ AUTH SCREEN ══ -->
+<div id="screen-auth" class="screen active">
+  <div class="auth-wrap">
+    <div class="auth-logo">HABIT<br>DUEL</div>
+    <div class="auth-sub">// Prove que você consegue</div>
+    <div style="margin-bottom:16px;text-align:right">
+      <a href="solo.html" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;color:#7c3aed;text-decoration:none;border:1px solid #7c3aed33;padding:6px 12px;border-radius:6px">⚔️ MODO SOLO</a>
+    </div>
+
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="switchAuthTab('login')">Entrar</div>
+      <div class="auth-tab" onclick="switchAuthTab('register')">Criar Conta</div>
+    </div>
+
+    <form id="form-login" class="auth-form" onsubmit="handleLogin(event)">
+      <div class="input-group">
+        <label>Usuário</label>
+        <input type="text" id="login-user" placeholder="seu_usuario" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label>Senha</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <div class="auth-err" id="login-err"></div>
+      <button class="btn-primary" type="submit">ENTRAR</button>
+    </form>
+
+    <form id="form-register" class="auth-form hidden" onsubmit="handleRegister(event)">
+      <div class="input-group">
+        <label>Usuário</label>
+        <input type="text" id="reg-user" placeholder="seu_usuario" autocomplete="username">
+      </div>
+      <div class="input-group">
+        <label>Senha</label>
+        <input type="password" id="reg-pass" placeholder="••••••••" autocomplete="new-password">
+      </div>
+      <div class="auth-err" id="reg-err"></div>
+      <button class="btn-primary" type="submit">CRIAR CONTA</button>
+    </form>
+  </div>
+</div>
+
+<!-- ══ TELA: AGUARDANDO DUELO ══ -->
+<div id="screen-duelo" class="screen">
+  <div style="display:flex;flex-direction:column;justify-content:center;align-items:center;height:100%;padding:32px 24px;gap:0">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:48px;color:var(--accent);letter-spacing:2px;line-height:1;margin-bottom:4px">HABIT<br>DUEL</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;letter-spacing:3px;color:var(--muted);margin-bottom:48px">// Encontre seu oponente</div>
+
+    <!-- Seu código -->
+    <div style="width:100%;max-width:380px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:16px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Seu código — compartilhe com o oponente</div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div id="meu-codigo" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:4px;color:var(--accent);flex:1">——————</div>
+        <button onclick="copiarCodigo()" style="padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:'DM Mono',monospace;font-size:11px;cursor:pointer;letter-spacing:1px" id="btn-copiar">COPIAR</button>
+      </div>
+    </div>
+
+    <!-- Ou conectar pelo código do oponente -->
+    <div style="width:100%;max-width:380px;font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);text-align:center;margin:8px 0">— ou —</div>
+
+    <div style="width:100%;max-width:380px;display:flex;flex-direction:column;gap:12px">
+      <div style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted)">Digite o código do oponente</div>
+      <input id="input-codigo-opp" class="modal-input" style="margin:0" placeholder="Ex: A1B2C3D4" maxlength="8">
+      <div style="font-size:12px;color:var(--red);font-family:'DM Mono',monospace;min-height:16px" id="duelo-err"></div>
+      <button class="btn-primary" onclick="conectarDuelo()">INICIAR DUELO</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP SCREEN ══ -->
+<div id="screen-app" class="screen">
+  <!-- Header dinâmico -->
+  <div class="app-header">
+    <div class="app-title" id="page-title">HÁBITOS</div>
+    <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--muted)" id="header-user"></div>
+  </div>
+
+  <div class="app-content">
+
+    <!-- ── TAB: HÁBITOS ── -->
+    <div id="tab-habitos" class="tab-content active">
+      <div class="habits-header">
+        <div class="day-badge" id="today-label">SEG · 24 ABR</div>
+        <div class="streak-badge" id="streak-display">🔥 3 DIAS</div>
+      </div>
+      <div class="habit-list" id="habit-list"></div>
+      <button class="btn-add-habit" onclick="openAddHabit()">＋ &nbsp;Novo Hábito</button>
+    </div>
+
+    <!-- ── TAB: PERFIL ── -->
+    <div id="tab-perfil" class="tab-content">
+      <!-- Navegação de data -->
+      <div class="perfil-nav">
+        <button class="perfil-nav-btn" onclick="perfilShiftDay(-1)">‹</button>
+        <div class="perfil-date-label" id="perfil-date-label">—</div>
+        <button class="perfil-nav-btn" id="perfil-next-btn" onclick="perfilShiftDay(1)">›</button>
+      </div>
+
+      <!-- Cards de porcentagem -->
+      <div class="perfil-summary">
+        <div class="perfil-summary-card">
+          <div class="pscard-name" id="perfil-me-name">EU</div>
+          <div class="pscard-pct" id="perfil-me-pct">0%</div>
+          <div class="pct-bar-track"><div class="pct-bar-fill" id="perfil-me-bar" style="width:0%"></div></div>
+        </div>
+        <div class="perfil-summary-card">
+          <div class="pscard-name" id="perfil-opp-name">OPONENTE</div>
+          <div class="pscard-pct" id="perfil-opp-pct">0%</div>
+          <div class="pct-bar-track"><div class="pct-bar-fill" id="perfil-opp-bar" style="width:0%"></div></div>
+        </div>
+      </div>
+
+      <!-- Lista de hábitos do dia -->
+      <div class="section-label">Hábitos do dia</div>
+      <div class="habit-history-list" id="habit-history-list"></div>
+    </div>
+
+    <!-- ── TAB: FOTOS ── -->
+    <div id="tab-fotos" class="tab-content">
+      <div class="day-filter" id="day-filter"></div>
+      <div class="photos-grid" id="photos-grid"></div>
+    </div>
+
+    <!-- ── TAB: VALOR ── -->
+    <div id="tab-valor" class="tab-content">
+      <div class="vs-row">
+        <div class="vs-player">
+          <div class="vs-name" id="vs-me">—</div>
+          <div class="vs-pct" id="vs-pct-me">—%</div>
+          <div class="vs-label">CONCLUSÃO</div>
+        </div>
+        <div class="vs-sep">VS</div>
+        <div class="vs-player">
+          <div class="vs-name" id="vs-opp">—</div>
+          <div class="vs-pct" id="vs-pct-opp">—%</div>
+          <div class="vs-label">CONCLUSÃO</div>
+        </div>
+      </div>
+      <div class="valor-hero">
+        <div class="valor-label">Aposta atual</div>
+        <div class="valor-amount"><span class="valor-currency">R$</span><span id="valor-num">—</span></div>
+        <div class="valor-month" id="valor-month-label"></div>
+        <div style="margin-top:20px;display:flex;gap:10px;align-items:center;justify-content:center">
+          <input id="valor-input" type="number" min="0" placeholder="Novo valor"
+                 style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;color:var(--text);font-size:16px;font-family:'Bebas Neue',sans-serif;width:140px;outline:none;text-align:center;letter-spacing:1px">
+          <button onclick="atualizarValor()"
+                  style="padding:10px 18px;background:var(--accent);color:#0a0a0a;border:none;border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer">
+            SALVAR
+          </button>
+        </div>
+      </div>
+      <div class="section-label">Histórico</div>
+      <div class="valor-history" id="valor-history"></div>
+    </div>
+
+  </div><!-- /app-content -->
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="nav-item active" onclick="goTab('habitos',this)" data-tab="habitos">
+      <div class="nav-icon">✦</div>
+      <div class="nav-label">Main</div>
+    </div>
+    <div class="nav-item" onclick="goTab('perfil',this)" data-tab="perfil">
+      <div class="nav-icon">◎</div>
+      <div class="nav-label">Perfil</div>
+    </div>
+    <div class="nav-item" onclick="goTab('fotos',this)" data-tab="fotos">
+      <div class="nav-icon">⬛</div>
+      <div class="nav-label">Fotos</div>
+    </div>
+    <div class="nav-item" onclick="goTab('valor',this)" data-tab="valor">
+      <div class="nav-icon">◈</div>
+      <div class="nav-label">Valor</div>
+    </div>
+  </nav>
+</div>
+
+<!-- ══ MODAL: CONFIRMAR HÁBITO ══ -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-habit-name">MEDITAR</div>
+    <div class="modal-sub">Envie uma foto para confirmar o hábito de hoje.</div>
+    <div class="photo-upload-area" id="upload-area" onclick="triggerUpload()">
+      <div class="icon">📸</div>
+      <p>Toque para tirar foto ou selecionar</p>
+      <img class="photo-preview" id="photo-preview" alt="">
+    </div>
+    <input type="file" id="file-input" accept="image/*" capture="environment" style="display:none" onchange="handleFileSelect(event)">
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModal('modal-confirm')">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmHabit()">CONFIRMAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ADICIONAR HÁBITO ══ -->
+<div class="modal-overlay" id="modal-add">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">NOVO HÁBITO</div>
+    <div class="modal-sub">Dê um nome ao seu hábito diário.</div>
+    <input class="modal-input" id="new-habit-input" placeholder="Ex: Meditar, Correr, Ler..." maxlength="40">
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModal('modal-add')">Cancelar</button>
+      <button class="btn-confirm" onclick="saveNewHabit()">CRIAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: EDITAR HÁBITO ══ -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">EDITAR HÁBITO</div>
+    <div class="modal-sub" id="edit-habit-sub">Altere o nome do hábito.</div>
+    <input class="modal-input" id="edit-habit-input" placeholder="Nome do hábito" maxlength="40">
+    <div class="modal-btns">
+      <button class="btn-ghost" onclick="closeModal('modal-edit')">Cancelar</button>
+      <button class="btn-confirm" onclick="saveEditHabit()">SALVAR</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════
+const API = window.location.origin;
+
+// ════════════════════════════════════
+//  STATE
+// ════════════════════════════════════
+let state = {
+  userId: null,
+  username: null,
+  opponent: null,
+  habits: [],         // [{id, name}] vindo da API
+  historicoHoje: null,// {id, date, habitos:[{habitoId,habitoNome,situacao,fotoPath}]}
+  selectedHabitId: null,
+  editHabitId: null,
+  selectedPhotoDay: null,
+  perfilDate: null,
+  duelo: null,
+  fotosData: [],      // itens de historico_habito com foto do mês
+};
+
+// ════════════════════════════════════
+//  API HELPERS
+// ════════════════════════════════════
+async function api(method, path, params = {}, body = null) {
+  const url = new URL(API + path);
+  Object.entries(params).forEach(([k, v]) => v !== undefined && url.searchParams.set(k, v));
+  const opts = { method, headers: {} };
+  if (body instanceof FormData) {
+    opts.body = body;
+  } else if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    const msg = await res.text().catch(() => res.statusText);
+    throw new Error(msg || res.statusText);
+  }
+  return res.status === 204 ? null : res.json();
+}
+
+function photoUrl(fotoPath) {
+  if (!fotoPath) return null;
+  // fotoPath vem como "uploads/1/arquivo.jpg" → serve em /1/arquivo.jpg
+  return API + '/' + fotoPath.replace(/^uploads\//, '');
+}
+
+function formatDate(iso) {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  const months = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  return `${parseInt(d)} ${months[parseInt(m)-1]}`;
+}
+
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+// ════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', (i === 0) === (tab === 'login')));
+  document.getElementById('form-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('form-register').classList.toggle('hidden', tab !== 'register');
+}
+
+async function handleLogin(e) {
+  e.preventDefault();
+  const name = document.getElementById('login-user').value.trim();
+  const senha = document.getElementById('login-pass').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+  try {
+    const user = await api('POST', '/user/login', { name, senha });
+    saveSession(user);
+    await entrarNoApp(user);
+  } catch (err) {
+    errEl.textContent = 'Usuário ou senha inválidos';
+  }
+}
+
+async function handleRegister(e) {
+  e.preventDefault();
+  const name = document.getElementById('reg-user').value.trim();
+  const senha = document.getElementById('reg-pass').value;
+  const errEl = document.getElementById('reg-err');
+  errEl.textContent = '';
+  if (!name || !senha) { errEl.textContent = 'Preencha todos os campos'; return; }
+  if (name.length < 3)  { errEl.textContent = 'Usuário muito curto'; return; }
+  try {
+    const user = await api('POST', '/user/register', { name, senha });
+    saveSession(user);
+    await entrarNoApp(user);
+  } catch (err) {
+    errEl.textContent = err.message || 'Erro ao criar conta';
+  }
+}
+
+function saveSession(user) {
+  localStorage.setItem('hd_session', JSON.stringify({ userId: user.id, username: user.name }));
+}
+
+async function entrarNoApp(user) {
+  state.userId   = user.id;
+  state.username = user.name;
+  state.userCodigo = user.codigo;
+
+  document.getElementById('header-user').textContent = user.name.toUpperCase();
+  document.getElementById('screen-auth').classList.remove('active');
+
+  // Verifica se já tem duelo
+  try {
+    state.duelo = await api('GET', '/duelo/meu', { userId: state.userId });
+    if (state.duelo.user1Id === state.userId) {
+      state.opponentId = state.duelo.user2Id;
+      state.opponent   = state.duelo.user2;
+    } else {
+      state.opponentId = state.duelo.user1Id;
+      state.opponent   = state.duelo.user1;
+    }
+    mostrarApp();
+  } catch {
+    state.duelo = null;
+    mostrarTelaDuelo(user.codigo);
+  }
+}
+
+function mostrarTelaDuelo(codigo) {
+  document.getElementById('screen-duelo').classList.add('active');
+  document.getElementById('meu-codigo').textContent = codigo || '——————';
+}
+
+function mostrarApp() {
+  document.getElementById('screen-duelo').classList.remove('active');
+  document.getElementById('screen-app').classList.add('active');
+  carregarDados();
+}
+
+function copiarCodigo() {
+  navigator.clipboard.writeText(state.userCodigo || '').then(() => {
+    const btn = document.getElementById('btn-copiar');
+    btn.textContent = 'COPIADO!';
+    setTimeout(() => btn.textContent = 'COPIAR', 2000);
+  });
+}
+
+async function conectarDuelo() {
+  const codigo = document.getElementById('input-codigo-opp').value.trim().toUpperCase();
+  const errEl  = document.getElementById('duelo-err');
+  errEl.textContent = '';
+  if (!codigo) { errEl.textContent = 'Digite o código do oponente'; return; }
+  if (codigo === state.userCodigo) { errEl.textContent = 'Não pode duelar consigo mesmo'; return; }
+  try {
+    state.duelo = await api('POST', '/duelo/conectar', { userId: state.userId, codigoOponente: codigo });
+    mostrarApp();
+  } catch (err) {
+    errEl.textContent = err.message || 'Código inválido ou oponente não encontrado';
+  }
+}
+
+async function carregarDados() {
+  // 1. Hábitos do usuário
+  try {
+    state.habits = await api('GET', `/habito/user/${state.userId}`);
+  } catch { state.habits = []; }
+
+  // 2. Histórico de hoje (saber quais já foram feitos)
+  try {
+    state.historicoHoje = await api('GET', '/historico/dia', { userId: state.userId, date: todayStr() });
+  } catch { state.historicoHoje = null; }
+
+  // 3. Duelo
+  try {
+    state.duelo = await api('GET', '/duelo/meu', { userId: state.userId });
+    if (state.duelo.user1Id === state.userId) {
+      state.opponentId = state.duelo.user2Id;
+      state.opponent   = state.duelo.user2;
+    } else {
+      state.opponentId = state.duelo.user1Id;
+      state.opponent   = state.duelo.user1;
+    }
+  } catch { state.duelo = null; }
+
+  // 4. Hábitos e histórico de hoje do oponente
+  await carregarDadosOponente();
+
+  // 5. Fotos do mês (para tab Fotos)
+  await carregarFotosMes();
+
+  renderAll();
+}
+
+async function carregarDadosOponente() {
+  if (!state.opponentId) { state.oppHabits = []; state.historicoOppHoje = null; return; }
+  try {
+    state.oppHabits = await api('GET', `/habito/user/${state.opponentId}`);
+  } catch { state.oppHabits = []; }
+  try {
+    state.historicoOppHoje = await api('GET', '/historico/dia', { userId: state.opponentId, date: todayStr() });
+  } catch { state.historicoOppHoje = null; }
+}
+
+async function carregarFotosMes() {
+  const d = new Date();
+  const ano = d.getFullYear();
+  const mes = d.getMonth() + 1;
+
+  let myFotos = [];
+  try {
+    const historicos = await api('GET', '/historico/mes', { userId: state.userId, ano, mes });
+    myFotos = historicos.flatMap(h =>
+            (h.habitos || []).filter(i => i.fotoPath)
+                    .map(i => ({ ...i, date: h.date, owner: state.username }))
+    );
+  } catch {}
+
+  let oppFotos = [];
+  if (state.opponentId) {
+    try {
+      const historicos = await api('GET', '/historico/mes', { userId: state.opponentId, ano, mes });
+      oppFotos = historicos.flatMap(h =>
+              (h.habitos || []).filter(i => i.fotoPath)
+                      .map(i => ({ ...i, date: h.date, owner: state.opponent }))
+      );
+    } catch {}
+  }
+
+  state.fotosData = [...myFotos, ...oppFotos];
+}
+
+// ════════════════════════════════════
+//  NAVIGATION
+// ════════════════════════════════════
+const tabTitles = { habitos: 'HÁBITOS', perfil: 'PERFIL', fotos: 'FOTOS', valor: 'VALOR' };
+
+function goTab(tab, el) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  el.classList.add('active');
+  document.getElementById('page-title').textContent = tabTitles[tab];
+  if (tab === 'perfil') renderPerfil();
+  if (tab === 'fotos')  renderFotos();
+  if (tab === 'valor')  renderValor();
+}
+
+// ════════════════════════════════════
+//  RENDER: HÁBITOS
+// ════════════════════════════════════
+function renderAll() {
+  renderHeader();
+  renderHabitos();
+}
+
+function isDoneToday(habitId) {
+  if (!state.historicoHoje) return false;
+  return (state.historicoHoje.habitos || []).some(
+    item => item.habitoId === habitId && item.situacao === 'FEITO'
+  );
+}
+
+function isOppDoneToday(habitName) {
+  if (!state.historicoOppHoje || !state.oppHabits) return null;
+  const oppHabit = (state.oppHabits || []).find(h => h.name === habitName);
+  if (!oppHabit) return null;
+  return (state.historicoOppHoje.habitos || []).some(
+    item => item.habitoId === oppHabit.id && item.situacao === 'FEITO'
+  );
+}
+
+function renderHeader() {
+  const days   = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+  const months = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const d = new Date();
+  document.getElementById('today-label').textContent = `${days[d.getDay()]} · ${d.getDate()} ${months[d.getMonth()]}`;
+
+  // Streak = dias consecutivos com pelo menos 1 hábito feito no histórico
+  const doneDates = new Set(state.fotosData.map(f => f.date));
+  let streak = 0;
+  for (let i = 0; i <= 30; i++) {
+    const dt = new Date(); dt.setDate(dt.getDate() - i);
+    if (doneDates.has(dt.toISOString().split('T')[0])) streak++;
+    else if (i > 0) break; // permite hoje ainda não ter feito
+  }
+  document.getElementById('streak-display').textContent = `🔥 ${streak} DIA${streak !== 1 ? 'S' : ''}`;
+}
+
+function renderHabitos() {
+  const list = document.getElementById('habit-list');
+  list.innerHTML = '';
+  if (!state.habits.length) {
+    list.innerHTML = '<div style="padding:40px 0;text-align:center;color:var(--muted);font-family:\'DM Mono\',monospace;font-size:12px;letter-spacing:1px">Nenhum hábito cadastrado</div>';
+    return;
+  }
+  const oppLabel = (state.opponent || 'OPO').substring(0, 3).toUpperCase();
+  state.habits.forEach(h => {
+    const done    = isDoneToday(h.id);
+    const oppDone = isOppDoneToday(h.name);
+    const card = document.createElement('div');
+    card.className = 'habit-card' + (done ? ' done' : '');
+    const oppIndicator = oppDone === null ? '' : `
+      <div style="display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;margin-right:2px">
+        <div style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;color:var(--muted)">${oppLabel}</div>
+        <div style="font-size:15px">${oppDone ? '✅' : '⬜'}</div>
+      </div>`;
+    card.innerHTML = `
+      <div class="habit-checkbox">${done ? '✓' : ''}</div>
+      <div class="habit-info">
+        <div class="habit-name">${h.name}</div>
+        <div class="habit-streak">${done ? '✓ concluído hoje' : 'pendente hoje'}</div>
+      </div>
+      ${oppIndicator}
+      <div class="habit-photo-btn">${done ? '✓' : '📷'}</div>
+    `;
+    card.querySelector('.habit-checkbox').addEventListener('click', (e) => { e.stopPropagation(); openConfirmModal(h.id); });
+    card.querySelector('.habit-info').addEventListener('click', () => openConfirmModal(h.id));
+    card.querySelector('.habit-photo-btn').addEventListener('click', (e) => { e.stopPropagation(); openConfirmModal(h.id); });
+    let pressTimer;
+    card.addEventListener('touchstart', () => { pressTimer = setTimeout(() => openEditHabit(h.id), 600); });
+    card.addEventListener('touchend', () => clearTimeout(pressTimer));
+    card.addEventListener('mousedown', () => { pressTimer = setTimeout(() => openEditHabit(h.id), 600); });
+    card.addEventListener('mouseup', () => clearTimeout(pressTimer));
+    list.appendChild(card);
+  });
+}
+
+// ════════════════════════════════════
+//  RENDER: PERFIL
+// ════════════════════════════════════
+async function renderPerfil() {
+  if (!state.perfilDate) state.perfilDate = todayStr();
+
+  const today  = todayStr();
+  const isToday = state.perfilDate === today;
+  const [y, m, d] = state.perfilDate.split('-').map(Number);
+  const dayNames   = ['DOM','SEG','TER','QUA','QUI','SEX','SÁB'];
+  const monthNames = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const dateObj = new Date(y, m - 1, d);
+
+  const el = document.getElementById('perfil-date-label');
+  el.textContent = `${dayNames[dateObj.getDay()]} · ${d} ${monthNames[m-1]}`;
+  el.className = 'perfil-date-label' + (isToday ? ' perfil-date-today' : '');
+  document.getElementById('perfil-next-btn').style.opacity = isToday ? '0.3' : '1';
+  document.getElementById('perfil-next-btn').style.pointerEvents = isToday ? 'none' : '';
+
+  // Busca histórico do dia selecionado
+  let historicoDia = isToday ? state.historicoHoje : null;
+  if (!historicoDia && !isToday) {
+    try { historicoDia = await api('GET', '/historico/dia', { userId: state.userId, date: state.perfilDate }); }
+    catch { historicoDia = null; }
+  }
+
+  const itens  = historicoDia?.habitos || [];
+  const total  = state.habits.length || 1;
+  const myDone = itens.filter(i => i.situacao === 'FEITO').length;
+  const myPct  = Math.round((myDone / total) * 100);
+
+  document.getElementById('perfil-me-name').textContent = (state.username || 'EU').toUpperCase();
+  document.getElementById('perfil-opp-name').textContent = (state.opponent || 'OPONENTE').toUpperCase();
+
+  const mePctEl = document.getElementById('perfil-me-pct');
+  mePctEl.textContent = myPct + '%';
+  mePctEl.className = 'pscard-pct' + (myPct === 0 ? ' zero' : '');
+  document.getElementById('perfil-me-bar').style.width = myPct + '%';
+
+  // Busca dados reais do oponente
+  let oppPct = 0;
+  let itensOpp = [];
+  let oppHabits = [];
+  if (state.opponentId) {
+    try {
+      const historicoOpp = await api('GET', '/historico/dia', {
+        userId: state.opponentId, date: state.perfilDate
+      });
+      itensOpp = historicoOpp?.habitos || [];
+    } catch { itensOpp = []; }
+    try {
+      oppHabits = await api('GET', `/habito/user/${state.opponentId}`);
+    } catch { oppHabits = []; }
+    const oppTotal = oppHabits.length || 1;
+    const oppDone  = itensOpp.filter(i => i.situacao === 'FEITO').length;
+    oppPct = Math.round((oppDone / oppTotal) * 100);
+  }
+  const oppPctEl = document.getElementById('perfil-opp-pct');
+  oppPctEl.textContent = (state.opponentId ? oppPct + '%' : '—%');
+  oppPctEl.className = 'pscard-pct' + (oppPct === 0 ? ' zero' : '');
+  document.getElementById('perfil-opp-bar').style.width = oppPct + '%';
+
+  const list = document.getElementById('habit-history-list');
+  if (!state.habits.length && !oppHabits.length) {
+    list.innerHTML = '<div style="padding:32px 0;text-align:center;color:var(--muted);font-family:\'DM Mono\',monospace;font-size:12px;letter-spacing:1px">Nenhum hábito cadastrado</div>';
+    return;
+  }
+  // Junta todos os hábitos únicos (meus + do oponente) por nome para cruzar
+  const allNames = [...new Set([
+    ...state.habits.map(h => h.name),
+    ...oppHabits.map(h => h.name)
+  ])];
+  list.innerHTML = allNames.map(name => {
+    const myHabit  = state.habits.find(h => h.name === name);
+    const oppHabit = oppHabits.find(h => h.name === name);
+    const myItem   = myHabit ? itens.find(i => i.habitoId === myHabit.id) : null;
+    const oppItem  = oppHabit ? itensOpp.find(i => i.habitoId === oppHabit.id) : null;
+    const meDone   = myItem?.situacao === 'FEITO';
+    const oppDone  = oppItem?.situacao === 'FEITO';
+    const meStr    = myHabit  ? (meDone  ? '✅' : '⬜') : '—';
+    const oppStr   = oppHabit ? (oppDone ? '✅' : '⬜') : '—';
+    return `
+      <div class="habit-history-row">
+        <div class="hhr-name">${name}</div>
+        <div class="hhr-col">
+          <div class="hhr-col-label">EU</div>
+          <div class="hhr-status">${meStr}</div>
+        </div>
+        <div class="hhr-divider"></div>
+        <div class="hhr-col">
+          <div class="hhr-col-label">OPO</div>
+          <div class="hhr-status">${oppStr}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function perfilShiftDay(dir) {
+  const cur = new Date(state.perfilDate + 'T12:00:00');
+  cur.setDate(cur.getDate() + dir);
+  const today = new Date(); today.setHours(12,0,0,0);
+  if (cur > today) return;
+  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+  if (cur < firstDay) return;
+  state.perfilDate = cur.toISOString().split('T')[0];
+  await renderPerfil();
+}
+
+// ════════════════════════════════════
+//  RENDER: FOTOS
+// ════════════════════════════════════
+function renderFotos() {
+  const filter = document.getElementById('day-filter');
+  const grid   = document.getElementById('photos-grid');
+  const fotos  = state.fotosData;
+
+  if (!fotos.length) {
+    filter.innerHTML = '';
+    grid.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="icon">📷</div><p>Nenhuma foto ainda</p></div>`;
+    return;
+  }
+
+  const days = [...new Set(fotos.map(f => f.date))].sort().reverse();
+  filter.innerHTML = '';
+  const allChip = document.createElement('div');
+  allChip.className = 'day-chip' + (!state.selectedPhotoDay ? ' active' : '');
+  allChip.textContent = 'Todos';
+  allChip.onclick = () => { state.selectedPhotoDay = null; renderFotos(); };
+  filter.appendChild(allChip);
+  days.forEach(day => {
+    const chip = document.createElement('div');
+    chip.className = 'day-chip' + (state.selectedPhotoDay === day ? ' active' : '');
+    chip.textContent = formatDate(day);
+    chip.onclick = () => { state.selectedPhotoDay = day; renderFotos(); };
+    filter.appendChild(chip);
+  });
+
+  const filtered = state.selectedPhotoDay ? fotos.filter(f => f.date === state.selectedPhotoDay) : fotos;
+  grid.innerHTML = '';
+  filtered.slice().reverse().forEach(f => {
+    const imgUrl = photoUrl(f.fotoPath);
+    const card = document.createElement('div');
+    card.className = 'photo-card';
+    card.innerHTML = `
+      <div class="photo-img" style="${imgUrl ? `background:url(${imgUrl}) center/cover no-repeat` : ''}">
+        ${imgUrl ? '' : '📷'}
+      </div>
+      <div class="photo-meta">
+        <div class="photo-habit">${f.habitoNome}</div>
+        <div class="photo-time">${formatDate(f.date)}</div>
+        <div class="photo-owner">${(f.owner || '').toUpperCase()}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+// ════════════════════════════════════
+//  RENDER: VALOR
+// ════════════════════════════════════
+function renderValor() {
+  const months = ['JAN','FEV','MAR','ABR','MAI','JUN','JUL','AGO','SET','OUT','NOV','DEZ'];
+  const d = new Date();
+  const valor = state.duelo?.valor ?? '—';
+  document.getElementById('valor-num').textContent = valor;
+  document.getElementById('valor-month-label').textContent =
+          `${months[d.getMonth()]} / ${d.getFullYear()} · sobe R$10 em ${months[(d.getMonth()+1)%12].toLowerCase()}`;
+
+  document.getElementById('vs-me').textContent  = (state.username || '—').toUpperCase();
+  document.getElementById('vs-opp').textContent = (state.opponent  || '—').toUpperCase();
+
+  const today = d.getDate();
+
+  function calcPct(ownerName) {
+    if (!ownerName) return 0;
+    const doneDates = new Set(
+            state.fotosData.filter(f => f.owner === ownerName).map(f => f.date)
+    );
+    let done = 0;
+    for (let day = 1; day <= today; day++) {
+      const iso = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      if (doneDates.has(iso)) done++;
+    }
+    return Math.round((done / today) * 100);
+  }
+
+  document.getElementById('vs-pct-me').textContent  = calcPct(state.username) + '%';
+  document.getElementById('vs-pct-opp').textContent = state.opponent ? calcPct(state.opponent) + '%' : '—%';
+
+  document.getElementById('valor-history').innerHTML = `
+    <div class="valor-row">
+      <div class="valor-row-month">Mês atual</div>
+      <div class="valor-row-val">R$${valor}</div>
+    </div>
+  `;
+}
+
+async function atualizarValor() {
+  const input = document.getElementById('valor-input');
+  const novoValor = parseFloat(input.value);
+  if (isNaN(novoValor) || novoValor < 0) return;
+  try {
+    state.duelo = await api('PUT', '/duelo/valor', {
+      userId: state.userId, valor: novoValor
+    });
+    input.value = '';
+    renderValor();
+  } catch (err) {
+    alert('Erro ao atualizar aposta: ' + err.message);
+  }
+}
+// ════════════════════════════════════
+//  MODALS: CONFIRMAR HÁBITO
+// ════════════════════════════════════
+function openConfirmModal(habitId) {
+  const h = state.habits.find(x => x.id === habitId);
+  if (!h) return;
+  state.selectedHabitId = habitId;
+  document.getElementById('modal-habit-name').textContent = h.name.toUpperCase();
+
+  const preview = document.getElementById('photo-preview');
+  const area    = document.getElementById('upload-area');
+  preview.style.display = 'none';
+  preview.src = '';
+  area.classList.remove('has-photo');
+  area.querySelector('p').textContent = 'Toque para tirar foto ou selecionar';
+  area.querySelector('.icon').style.display = '';
+
+  // Se já tem foto hoje, mostra ela
+  const item = (state.historicoHoje?.habitos || []).find(i => i.habitoId === habitId);
+  if (item?.fotoPath) {
+    preview.src = photoUrl(item.fotoPath);
+    preview.style.display = 'block';
+    area.querySelector('.icon').style.display = 'none';
+    area.classList.add('has-photo');
+  }
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function triggerUpload() {
+  document.getElementById('file-input').click();
+}
+
+function handleFileSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  // Guarda o arquivo no input para envio posterior
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    const preview = document.getElementById('photo-preview');
+    const area    = document.getElementById('upload-area');
+    preview.src = ev.target.result;
+    preview.style.display = 'block';
+    area.classList.add('has-photo');
+    area.querySelector('.icon').style.display = 'none';
+    area.querySelector('p').textContent = 'Foto selecionada';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function confirmHabit() {
+  const fileInput = document.getElementById('file-input');
+  const file = fileInput.files[0];
+  if (!file) {
+    document.getElementById('upload-area').style.borderColor = 'var(--red)';
+    setTimeout(() => document.getElementById('upload-area').style.borderColor = '', 1200);
+    return;
+  }
+
+  const form = new FormData();
+  form.append('foto', file);
+
+  try {
+    const item = await api('POST', '/historico/confirmar',
+      { userId: state.userId, habitoId: state.selectedHabitId },
+      form
+    );
+    // Atualiza historicoHoje localmente
+    if (!state.historicoHoje) state.historicoHoje = { habitos: [] };
+    const idx = state.historicoHoje.habitos.findIndex(i => i.habitoId === state.selectedHabitId);
+    if (idx >= 0) state.historicoHoje.habitos[idx] = item;
+    else state.historicoHoje.habitos.push(item);
+
+    // Adiciona à lista de fotos local
+    if (item.fotoPath) {
+      state.fotosData = state.fotosData.filter(f =>
+        !(f.habitoId === item.habitoId && f.date === todayStr())
+      );
+      state.fotosData.push({ ...item, date: todayStr(), owner: state.username });
+    }
+
+    closeModal('modal-confirm');
+    fileInput.value = '';
+    renderHabitos();
+    renderHeader();
+  } catch (err) {
+    alert('Erro ao confirmar hábito: ' + err.message);
+  }
+}
+
+// ════════════════════════════════════
+//  MODALS: ADICIONAR / EDITAR HÁBITO
+// ════════════════════════════════════
+function openAddHabit() {
+  document.getElementById('new-habit-input').value = '';
+  document.getElementById('modal-add').classList.add('open');
+  setTimeout(() => document.getElementById('new-habit-input').focus(), 300);
+}
+
+async function saveNewHabit() {
+  const nome = document.getElementById('new-habit-input').value.trim();
+  if (!nome) return;
+  try {
+    const habito = await api('POST', '/habito', { userId: state.userId, nome });
+    state.habits.push(habito);
+    closeModal('modal-add');
+    renderHabitos();
+  } catch (err) {
+    alert('Erro ao criar hábito: ' + err.message);
+  }
+}
+
+function openEditHabit(habitId) {
+  const h = state.habits.find(x => x.id === habitId);
+  if (!h) return;
+  state.editHabitId = habitId;
+  document.getElementById('edit-habit-input').value = h.name;
+  document.getElementById('edit-habit-sub').textContent = `Editando: ${h.name}`;
+  document.getElementById('modal-edit').classList.add('open');
+  setTimeout(() => document.getElementById('edit-habit-input').focus(), 300);
+}
+
+async function saveEditHabit() {
+  const nome = document.getElementById('edit-habit-input').value.trim();
+  if (!nome) return;
+  try {
+    const updated = await api('PUT', `/habito/${state.editHabitId}`, { userId: state.userId, nome });
+    const idx = state.habits.findIndex(h => h.id === state.editHabitId);
+    if (idx >= 0) state.habits[idx] = updated;
+    closeModal('modal-edit');
+    renderHabitos();
+  } catch (err) {
+    alert('Erro ao editar hábito: ' + err.message);
+  }
+}
+
+// Fecha modal ao clicar fora
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// ════════════════════════════════════
+//  AUTO-LOGIN
+// ════════════════════════════════════
+(async function autoLogin() {
+  const saved = localStorage.getItem('hd_session');
+  if (!saved) return;
+  const { userId } = JSON.parse(saved);
+  try {
+    const user = await api('GET', `/user/${userId}`);
+    state.userId     = user.id;
+    state.username   = user.name;
+    state.userCodigo = user.codigo;
+    document.getElementById('header-user').textContent = user.name.toUpperCase();
+    document.getElementById('screen-auth').classList.remove('active');
+    try {
+      state.duelo = await api('GET', '/duelo/meu', { userId: state.userId });
+      if (state.duelo.user1Id === state.userId) {
+        state.opponentId = state.duelo.user2Id;
+        state.opponent   = state.duelo.user2;
+      } else {
+        state.opponentId = state.duelo.user1Id;
+        state.opponent   = state.duelo.user1;
+      }
+      mostrarApp();
+    } catch {
+      state.duelo = null;
+      mostrarTelaDuelo(user.codigo);
+    }
+  } catch {
+    localStorage.removeItem('hd_session');
+  }
+})();
+</script>
+</body>
+</html>
